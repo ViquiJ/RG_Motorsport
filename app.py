@@ -1,11 +1,8 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from tkinter import ttk
 import sqlite3
 
-# Credenciales predeterminadas
-usuario_valido = "system"
-clave_valida = "admin"
 # Configuración de la ventana de inicio de sesión
 root = tk.Tk()
 root.title("Iniciar Sesión")
@@ -17,67 +14,109 @@ def iniciar_sesion():
     usuario = entry_usuario.get()
     clave = entry_password.get()
     
-    # Verificar las credenciales
-    if usuario == usuario_valido and clave == clave_valida:
-        root.withdraw() # Cierra la ventana de inicio de sesión
-        menu_principal()  # Muestra el menú principal  
-        
-    else:
-        messagebox.showerror("Error", "Usuario o contraseña incorrectos.")
-
-def cambiar_clave():
-    # Crear una nueva ventana para cambiar la contraseña
-    ventana_cambiar_clave = tk.Toplevel(root)
-    ventana_cambiar_clave.title("Cambiar clave")
-    ventana_cambiar_clave.geometry("300x280")
-    ventana_cambiar_clave.resizable(False, False)
+    conn = sqlite3.connect('rgmotorsport.db')
+    cursor = conn.cursor()
     
-    # Pedir la clave actual
-    tk.Label(ventana_cambiar_clave, text="Clave actual:", font="Helvetica 12").pack(pady=5)
-    clave_actual_entry = tk.Entry(ventana_cambiar_clave, show="*", width=30)
+    cursor.execute("SELECT * FROM usuario WHERE usuario = ? AND clave = ?", (usuario, clave))
+    resultado = cursor.fetchone()
+    
+    if resultado:
+        root.withdraw() # Cierra la ventana de inicio de sesión
+        menu_principal()  # Muestra el menú principal 
+    else:
+        messagebox.showerror("Error", "Usuario o contraseña incorrectos")
+    
+    conn.close()
+
+# Ventana para cambiar la contraseña
+def abrir_cambio_contrasena():
+    ventana_cambio = tk.Toplevel()
+    ventana_cambio.title("Cambiar Contraseña")
+    ventana_cambio.geometry("300x250")
+    ventana_cambio.resizable(False, False)
+    
+    #Campo clave actual
+    tk.Label(ventana_cambio, text="Contraseña actual:", font="Helvetica 12").pack(pady=5)
+    clave_actual_entry = tk.Entry(ventana_cambio, show="*", width=30)
     clave_actual_entry.pack(pady=5)
     
-    # Nueva clave
-    tk.Label(ventana_cambiar_clave, text="Nueva clave:", font="Helvetica 12").pack(pady=5)
-    nueva_clave_entry = tk.Entry(ventana_cambiar_clave, show="*", width=30)
+    #Campo Nueva clave
+    tk.Label(ventana_cambio, text="Nueva contraseña:", font="Helvetica 12").pack(pady=5)
+    nueva_clave_entry = tk.Entry(ventana_cambio, show="*", width=30)
     nueva_clave_entry.pack(pady=5)
     
-    # Confirmar nueva clave
-    tk.Label(ventana_cambiar_clave, text="Confirmar clave:", font="Helvetica 12").pack(pady=5)
-    confirmar_clave_entry = tk.Entry(ventana_cambiar_clave, show="*", width=30)
-    confirmar_clave_entry.pack(pady=5)
+    # Campo Confirmar nueva clave
+    tk.Label(ventana_cambio, text="Confirmar nueva contraseña:", font="Helvetica 12").pack(pady=5)
+    entry_nueva_contrasena = tk.Entry(ventana_cambio, show="*", width=30)
+    entry_nueva_contrasena.pack(pady=5)
+
+     # Botón cambiar contraseña
+    tk.Button(ventana_cambio, text="Cambiar", font=20, command=lambda: cambiar_contrasena(ventana_cambio, clave_actual_entry, nueva_clave_entry, entry_nueva_contrasena)).pack(pady=10)
+    ventana_cambio.mainloop()
+
+# Función para cambiar la contraseña
+def cambiar_contrasena(ventana_cambio, clave_actual_entry, nueva_clave_entry, entry_nueva_contrasena):
+    clave_actual = clave_actual_entry.get()
+    nueva_contrasena = nueva_clave_entry.get()
+    confirmar_contrasena = entry_nueva_contrasena.get()
     
-    def guardar_clave():
-        global clave_valida
-        clave_actual = clave_actual_entry.get()
-        nueva_clave = nueva_clave_entry.get()
-        confirmar_clave = confirmar_clave_entry.get()
-        
-        # Validar la clave actual, nueva clave y confirmación
-        if clave_actual != clave_valida:
-            messagebox.showerror("Error", "La clave actual es incorrecta.")
-        elif not nueva_clave:
-            messagebox.showerror("Error", "La nueva clave no puede estar vacía.")
-        elif nueva_clave != confirmar_clave:
-            messagebox.showerror("Error", "Las claves no coinciden.")
-        else:
-            clave_valida = nueva_clave  # Cambiar la clave válida
-            messagebox.showinfo("Éxito", "Clave actualizada correctamente.")
-            ventana_cambiar_clave.destroy()  # Cerrar la ventana de cambio de clave
+    # Validar que la clave actual no esté vacía
+    if not clave_actual:
+        messagebox.showerror("Error", "La contraseña actual no puede estar vacía.")
+        return
     
-    # Botón para guardar la nueva clave
-    boton_guardar = tk.Button(ventana_cambiar_clave, text="Cambiar clave", font="Helvetica 12 bold", command=guardar_clave)
-    boton_guardar.pack(pady=10)
+    # Validar que la nueva contraseña no esté vacía
+    if not nueva_contrasena:
+        messagebox.showerror("Error", "La nueva contraseña no puede estar vacía.")
+        return
+    
+    # Verificar que la nueva contraseña y la confirmación coincidan
+    if nueva_contrasena != confirmar_contrasena:
+        messagebox.showerror("Error", "La nueva contraseña y la confirmación no coinciden.")
+        return
+    
+    conn = sqlite3.connect('rgmotorsport.db')
+    cursor = conn.cursor()
+    
+    # Consultar la clave actual del usuario 'admin'
+    cursor.execute("SELECT clave FROM usuario WHERE usuario = 'admin'")
+    result = cursor.fetchone()
+
+    if result is None:
+        messagebox.showerror("Error", "No se encontró el usuario.")
+        conn.close()
+        return
+    
+    clave_guardada = result[0]
+
+    # Verificar que la clave actual ingresada sea correcta
+    if clave_actual != clave_guardada:
+        messagebox.showerror("Error", "La contraseña actual es incorrecta.")
+        conn.close()
+        return
+
+    # Verificar que la nueva contraseña sea diferente de la actual
+    if nueva_contrasena == clave_guardada:
+        messagebox.showerror("Error", "La nueva contraseña no puede ser igual a la actual.")
+        conn.close()
+        return
+
+    # Actualizar la contraseña en la base de datos
+    cursor.execute("UPDATE usuario SET clave = ? WHERE usuario = 'admin'", (nueva_contrasena,))
+    conn.commit()
+    
+    messagebox.showinfo("Éxito", "Contraseña cambiada con éxito")
+    conn.close()
+    ventana_cambio.destroy()
 
 def menu_principal():
     # Crear ventana del menú principal
     menu = tk.Toplevel(root)
-    #menu.state(newstate="withdraw")  # Deja la ventana en estado 'withdrawn' al principio
     menu.title("RG MOTORSPORT - Menú Principal")
-    menu.geometry("600x450")
+    menu.geometry("480x410")
 
     menuframe = tk.Frame(menu)
-    menuframe.place(relx=0.5, rely=0.4, anchor="center")
+    menuframe.place(relx=0.5, rely=0.5, anchor="center")
 
     # Botones del menú
     boton_clientes = tk.Button(menuframe, text="CLIENTES", font="Helvetica 20 bold", bd=5, command=lambda: ventana_clientes(menu))
@@ -98,7 +137,8 @@ def ventana_clientes(menu):
     # Crear la ventana de clientes
     cliente_ventana = tk.Toplevel(menu)
     cliente_ventana.title("RG MOTORSPORT - Gestión de Clientes")
-    cliente_ventana.geometry("600x400")
+    cliente_ventana.geometry("680x380")
+    cliente_ventana.resizable(False, False)
     
     # Conexión a la base de datos
     conexion = sqlite3.connect("rgmotorsport.db")
@@ -106,13 +146,14 @@ def ventana_clientes(menu):
 
     # Frame principal
     menuframe = tk.Frame(cliente_ventana, padx=20, pady=20)
-    menuframe.pack(fill="both", expand=True)
+    menuframe.pack(fill="both", expand=False)
 
     # Tabla para mostrar clientes
-    tree = ttk.Treeview(menuframe, columns=("Nombre", "Apellido", "Teléfono", "Dirección", "Patente"), show="headings", height=10)
+    tree = ttk.Treeview(menuframe, columns=("ID", "Nombre", "Apellido", "Teléfono", "Dirección", "Patente"), show="headings", height=10)
     tree.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
     
-    # Configuración de las cabeceras (sin la columna ID)
+    # Configuración de las cabeceras
+    tree.heading("ID", text="ID")
     tree.heading("Nombre", text="Nombre")
     tree.heading("Apellido", text="Apellido")
     tree.heading("Teléfono", text="Teléfono")
@@ -120,6 +161,7 @@ def ventana_clientes(menu):
     tree.heading("Patente", text="Patente")
     
     # Configuración de las columnas
+    tree.column("ID", width=10)
     tree.column("Nombre", width=120)
     tree.column("Apellido", width=120)
     tree.column("Teléfono", width=100)
@@ -127,16 +169,29 @@ def ventana_clientes(menu):
     tree.column("Patente", width=120)
 
     # Botones
-    agregar_button = tk.Button(menuframe, text="Agregar Cliente", command=lambda: abrir_formulario_agregar_cliente(cursor, tree))
-    agregar_button.grid(row=5, column=0, padx=10, pady=10, sticky="ew")
+    # Botón "Agregar Cliente"
+    agregar_button = tk.Button(menuframe, text="Agregar Cliente",font="Helvetica 10 bold", width=35, command=lambda: abrir_formulario_agregar_cliente(cursor, tree))
+    agregar_button.grid(row=5, column=0,padx=5, pady=10)
 
-    eliminar_button = tk.Button(menuframe, text="Eliminar Cliente", command=lambda: eliminar_cliente(tree, cursor))
-    eliminar_button.grid(row=6, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+    # Botón "Modificar Cliente"
+    modificar_button = tk.Button(menuframe, text="Modificar Cliente",font="Helvetica 10 bold", width=35, command=lambda: abrir_formulario_modificar_cliente(tree, cursor))
+    modificar_button.grid(row=5, column=1, padx=5, pady=10)
 
-    modificar_button = tk.Button(menuframe, text="Modificar Cliente", command=lambda: abrir_formulario_modificar_cliente(tree,cursor))
-    modificar_button.grid(row=5, column=1, padx=10, pady=10, sticky="ew")
+    # Botón "Eliminar Cliente"
+    eliminar_button = tk.Button(menuframe, text="Eliminar Cliente",font="Helvetica 10 bold",width=35, command=lambda: eliminar_cliente(tree, cursor))
+    eliminar_button.grid(row=6, column=0, padx=5, pady=10)
+
+    # Botón "Atrás"
+    atras_button = tk.Button(menuframe, text="Atrás",font="Helvetica 10 bold", width=10, command=lambda: volver_atras(cliente_ventana, menu))
+    atras_button.grid(row=6, column=1, padx=5, pady=10)
     # Cargar clientes al iniciar
     cargar_clientes(tree, cursor)
+    
+    def volver_atras(cliente_ventana, menu):
+        cliente_ventana.destroy()  # Cerrar la ventana actual
+        menu.deiconify()  # Mostrar la ventana anterior si estaba oculta
+   
+    menu.withdraw() # Cierra la ventana de inicio de sesión
 
 def cargar_clientes(tree, cursor):
     """Cargar todos los clientes desde la base de datos y mostrarlos en el TreeView."""
@@ -145,7 +200,7 @@ def cargar_clientes(tree, cursor):
         tree.delete(item)
 
     # Cargar datos de la base de datos
-    cursor.execute("SELECT Nombre, Apellido, Telefono, Direccion, Patente FROM clientes")
+    cursor.execute("SELECT ID_Cliente, Nombre, Apellido, Telefono, Direccion, Patente FROM clientes")
     for row in cursor.fetchall():
         tree.insert("", "end", values=row)
 
@@ -153,31 +208,31 @@ def abrir_formulario_agregar_cliente(cursor, tree):
     """Abrir ventana para agregar cliente."""
     formulario_ventana = tk.Toplevel(root)
     formulario_ventana.title("Agregar Cliente")
-    formulario_ventana.geometry("400x300")
+    formulario_ventana.geometry("240x246")
 
     # Etiquetas y campos de entrada
-    tk.Label(formulario_ventana, text="Nombre:").grid(row=0, column=0, sticky="w")
+    tk.Label(formulario_ventana, text="Nombre:").grid(row=0, column=0, sticky="w", padx=10)
     nombre_entry = tk.Entry(formulario_ventana)
     nombre_entry.grid(row=0, column=1, padx=10, pady=5)
 
-    tk.Label(formulario_ventana, text="Apellido:").grid(row=1, column=0, sticky="w")
+    tk.Label(formulario_ventana, text="Apellido:").grid(row=1, column=0, sticky="w", padx=10)
     apellido_entry = tk.Entry(formulario_ventana)
     apellido_entry.grid(row=1, column=1, padx=10, pady=5)
 
-    tk.Label(formulario_ventana, text="Teléfono:").grid(row=2, column=0, sticky="w")
+    tk.Label(formulario_ventana, text="Teléfono:").grid(row=2, column=0, sticky="w", padx=10)
     telefono_entry = tk.Entry(formulario_ventana)
     telefono_entry.grid(row=2, column=1, padx=10, pady=5)
 
-    tk.Label(formulario_ventana, text="Dirección:").grid(row=3, column=0, sticky="w")
+    tk.Label(formulario_ventana, text="Dirección:").grid(row=3, column=0, sticky="w", padx=10)
     direccion_entry = tk.Entry(formulario_ventana)
     direccion_entry.grid(row=3, column=1, padx=10, pady=5)
 
-    tk.Label(formulario_ventana, text="Patente:").grid(row=4, column=0, sticky="w")
+    tk.Label(formulario_ventana, text="Patente:").grid(row=4, column=0, sticky="w", padx=10)
     # Crear un combobox con las patentes disponibles
     cursor.execute("SELECT Patente FROM vehiculos")
     patentes = [row[0] for row in cursor.fetchall()]
     patente_combobox = ttk.Combobox(formulario_ventana, values=patentes, state="readonly")
-    patente_combobox.grid(row=4, column=1, padx=10, pady=5)
+    patente_combobox.grid(row=4, column=1, padx=5, pady=5)
 
     def agregar_cliente():
         nombre = nombre_entry.get()
@@ -196,7 +251,7 @@ def abrir_formulario_agregar_cliente(cursor, tree):
         else:
             messagebox.showerror("Error", "Todos los campos son obligatorios.")
 
-    tk.Button(formulario_ventana, text="Agregar", command=agregar_cliente).grid(row=5, column=0, columnspan=2, pady=10)
+    tk.Button(formulario_ventana, text="Agregar", font="Helvetica 12 bold", width=20, command=agregar_cliente).grid(row=5, column=0, columnspan=2, pady=30)
 
 def abrir_formulario_modificar_cliente(tree, cursor):
     """Abrir ventana para modificar cliente."""
@@ -211,33 +266,40 @@ def abrir_formulario_modificar_cliente(tree, cursor):
     # Ventana para modificar cliente
     modificar_ventana = tk.Toplevel(root)
     modificar_ventana.title("Modificar Cliente")
-    modificar_ventana.geometry("400x300")
+    modificar_ventana.geometry("240x246")
 
     # Crear campos de entrada
-    tk.Label(modificar_ventana, text="Nombre:").grid(row=0, column=0, sticky="w")
+    tk.Label(modificar_ventana, text="ID:").grid(row=0, column=0, sticky="w", padx=10)
+    id_label = tk.Label(modificar_ventana, text=cliente[0])  # Mostrar el valor actual del ID
+    id_label.grid(row=0, column=1, padx=10, pady=5)  # Usar un Label en vez de Entry
+    
+    tk.Label(modificar_ventana, text="Nombre:").grid(row=1, column=0, sticky="w", padx=10)
     nombre_entry = tk.Entry(modificar_ventana)
-    nombre_entry.insert(0, cliente[0])  # Rellenar con el valor actual
-    nombre_entry.grid(row=0, column=1, padx=10, pady=5)
+    nombre_entry.insert(0, cliente[1])  # Rellenar con el valor actual
+    nombre_entry.grid(row=1, column=1, padx=10, pady=5)
 
-    tk.Label(modificar_ventana, text="Apellido:").grid(row=1, column=0, sticky="w")
+    tk.Label(modificar_ventana, text="Apellido:").grid(row=2, column=0, sticky="w", padx=10)
     apellido_entry = tk.Entry(modificar_ventana)
-    apellido_entry.insert(0, cliente[1])
-    apellido_entry.grid(row=1, column=1, padx=10, pady=5)
+    apellido_entry.insert(0, cliente[2])
+    apellido_entry.grid(row=2, column=1, padx=10, pady=5)
 
-    tk.Label(modificar_ventana, text="Teléfono:").grid(row=2, column=0, sticky="w")
+    tk.Label(modificar_ventana, text="Teléfono:").grid(row=3, column=0, sticky="w", padx=10)
     telefono_entry = tk.Entry(modificar_ventana)
-    telefono_entry.insert(0, cliente[2])
-    telefono_entry.grid(row=2, column=1, padx=10, pady=5)
+    telefono_entry.insert(0, cliente[3])
+    telefono_entry.grid(row=3, column=1, padx=10, pady=5)
 
-    tk.Label(modificar_ventana, text="Dirección:").grid(row=3, column=0, sticky="w")
+    tk.Label(modificar_ventana, text="Dirección:").grid(row=4, column=0, sticky="w", padx=10)
     direccion_entry = tk.Entry(modificar_ventana)
-    direccion_entry.insert(0, cliente[3])
-    direccion_entry.grid(row=3, column=1, padx=10, pady=5)
+    direccion_entry.insert(0, cliente[4])
+    direccion_entry.grid(row=4, column=1, padx=10, pady=5)
 
-    tk.Label(modificar_ventana, text="Patente:").grid(row=4, column=0, sticky="w")
-    patente_combobox = ttk.Combobox(modificar_ventana, values=["Patente1", "Patente2", "Patente3"])  # Llenar con las patentes disponibles
-    patente_combobox.set(cliente[4])
-    patente_combobox.grid(row=4, column=1, padx=10, pady=5)
+    tk.Label(modificar_ventana, text="Patente:").grid(row=5, column=0, sticky="w", padx=10)
+        # Crear un combobox con las patentes disponibles
+    cursor.execute("SELECT Patente FROM vehiculos")
+    patentes = [row[0] for row in cursor.fetchall()]
+    patente_combobox = ttk.Combobox(modificar_ventana, values=patentes, state="readonly")
+    patente_combobox.set(cliente[5])
+    patente_combobox.grid(row=5, column=1, padx=10, pady=5)
 
     def modificar_cliente():
         nuevo_nombre = nombre_entry.get()
@@ -247,31 +309,58 @@ def abrir_formulario_modificar_cliente(tree, cursor):
         nueva_patente = patente_combobox.get()
 
         cursor.execute("""UPDATE clientes SET Nombre=?, Apellido=?, Telefono=?, Direccion=?, Patente=? 
-                        WHERE ID_Cliente=?""", 
-                       (nuevo_nombre, nuevo_apellido, nuevo_telefono, nueva_direccion, nueva_patente))
+                        WHERE ID_Cliente=?""",
+                       (nuevo_nombre, nuevo_apellido, nuevo_telefono, nueva_direccion, nueva_patente, id_cliente))
         cursor.connection.commit()
         messagebox.showinfo("Éxito", "Cliente modificado correctamente.")
         cargar_clientes(tree, cursor)
         modificar_ventana.destroy()
-    tk.Button(modificar_ventana, text="Modificar", command=modificar_cliente).grid(row=5, column=0, columnspan=2, pady=10)
+    tk.Button(modificar_ventana, text="Modificar", font="Helvetica 12 bold", width=20, command=modificar_cliente).grid(row=6, column=0, columnspan=2, pady=10)
+
+
+def confirmar_eliminar():
+    contraseña = simpledialog.askstring("Confirmación", "Por favor, ingresa tu contraseña para confirmar:", show="*")
+    if contraseña is None:  # Si el usuario cancela el ingreso
+        return None
+    conn = sqlite3.connect('rgmotorsport.db')
+    cursor = conn.cursor()
+        # Consultar la clave actual del usuario 'admin'
+    cursor.execute("SELECT clave FROM usuario WHERE usuario = 'admin'")
+    result = cursor.fetchone()
+
+    if result is None:
+        messagebox.showerror("Error", "No se encontró el usuario.")
+        conn.close()
+        return
+    
+    clave_guardada = result[0]
+    return contraseña == clave_guardada
 
 def eliminar_cliente(tree, cursor):
     """Eliminar el cliente seleccionado en la tabla."""
     selected_item = tree.selection()
-    if selected_item:
-        cliente = tree.item(selected_item)["values"]
-        nombre = cliente[0]
-        apellido = cliente[1]
-        confirm = messagebox.askyesno("Confirmación", f"¿Estás seguro de que deseas eliminar al cliente {nombre} {apellido}?")
-        
-        if confirm:
-            # Eliminar del registro en la base de datos
-            cursor.execute("DELETE FROM clientes WHERE Nombre=? AND Apellido=?", (nombre, apellido))
-            cursor.connection.commit()
-            messagebox.showinfo("Éxito", f"Cliente {nombre} {apellido} eliminado.")
-            cargar_clientes(tree, cursor)  # Actualizar la tabla de clientes
-    else:
+    if not selected_item:  # Verificar si se seleccionó un cliente
         messagebox.showerror("Error", "Por favor, selecciona un cliente para eliminar.")
+        return
+    
+    cliente = tree.item(selected_item)["values"]
+    nombre = cliente[1]
+    apellido = cliente[2]
+
+    # Solicitar la contraseña directamente
+    resultado_confirmacion = confirmar_eliminar()
+    if resultado_confirmacion is None:
+        # El usuario canceló el ingreso de la contraseña, no hacemos nada
+        return
+    elif resultado_confirmacion:
+        # Eliminar del registro en la base de datos
+        cursor.execute("DELETE FROM clientes WHERE Nombre=? AND Apellido=?", (nombre, apellido))
+        cursor.connection.commit()
+        messagebox.showinfo("Éxito", f"Cliente {nombre} {apellido} eliminado.")
+        cargar_clientes(tree, cursor)  # Actualizar la tabla de clientes
+    else:
+        # Si la contraseña es incorrecta
+        messagebox.showerror("Acceso denegado", "Contraseña incorrecta. No se puede eliminar al cliente.")
 
 # Crear un Frame para centrar todos los widgets
 frame_central = tk.Frame(root)
@@ -298,7 +387,7 @@ boton_ingresar = tk.Button(frame_central, text="Iniciar sesión", font="Helvetic
 boton_ingresar.pack(pady=5)
 
 # Botón de cambiar clave
-boton_cambioclave = tk.Button(frame_central, text="Cambiar clave", font="Helvetica 10 bold", command=cambiar_clave)
+boton_cambioclave = tk.Button(frame_central, text="Cambiar clave", font="Helvetica 10 bold", command=abrir_cambio_contrasena)
 boton_cambioclave.pack(pady=5)
 
 root.mainloop()
