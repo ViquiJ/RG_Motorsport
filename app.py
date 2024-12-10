@@ -137,8 +137,8 @@ def ventana_clientes(menu):
     # Crear la ventana de clientes
     cliente_ventana = tk.Toplevel(menu)
     cliente_ventana.title("RG MOTORSPORT - Gestión de Clientes")
-    cliente_ventana.geometry("680x380")
-    cliente_ventana.resizable(False, False)
+    cliente_ventana.geometry("680x420")
+    #cliente_ventana.resizable(False, False)
     
     # Conexión a la base de datos
     conexion = sqlite3.connect("rgmotorsport.db")
@@ -146,11 +146,61 @@ def ventana_clientes(menu):
 
     # Frame principal
     menuframe = tk.Frame(cliente_ventana, padx=20, pady=20)
-    menuframe.pack(fill="both", expand=False)
+    menuframe.pack(fill="both", expand=True)
+
+    # Frame para contener el Label y la barra de búsqueda
+    busqueda_frame = tk.Frame(menuframe)  
+    busqueda_frame.grid(row=0, column=0, columnspan=2, pady=10, sticky="w")  # Colocamos en la fila 0
+    
+    busqueda_label = tk.Label(busqueda_frame, text="Búsqueda", font=("Helvetica", 12, "bold"))  # Etiqueta "Búsqueda"
+    busqueda_label.grid(row=0, column=0, padx=5, sticky="w")
+
+    barra_busqueda = tk.Entry(busqueda_frame, font=("Helvetica", 10, "italic"), width=75)  # Barra de búsqueda
+    barra_busqueda.grid(row=0, column=1, padx=5, sticky="ew")
+    placeholder_text = "Buscar..."
+    barra_busqueda.insert(0, placeholder_text)  # Texto predeterminado
+
+     # Si el texto predeterminado está presente, borra el texto al hacer clic
+    def borrar_placeholder(event):
+        if barra_busqueda.get() == placeholder_text:
+            barra_busqueda.delete(0, tk.END)  # Borrar el texto predeterminado
+
+    # Si la barra de búsqueda está vacía, vuelve a poner el texto predeterminado
+    def restaurar_placeholder(event):
+        if barra_busqueda.get() == "":
+            barra_busqueda.insert(0, placeholder_text)  # Insertar texto predeterminado
+
+    # Bind para hacer que el texto desaparezca cuando se hace clic en la barra
+    barra_busqueda.bind("<FocusIn>", borrar_placeholder)
+    # Bind para restaurar el texto si la barra está vacía después de que el usuario termine
+    barra_busqueda.bind("<FocusOut>", restaurar_placeholder)
+
+    # Función para actualizar la búsqueda
+    def actualizar_busqueda():
+        busqueda = barra_busqueda.get().lower()  # Obtener texto de búsqueda y convertirlo a minúsculas
+
+        # Limpiar el Treeview
+        for item in tree.get_children():
+            tree.delete(item)
+
+        # Consulta SQL para filtrar los resultados
+        query = """
+        SELECT ID_Cliente, Nombre, Apellido, Telefono, Direccion, Patente
+        FROM clientes
+        WHERE LOWER(Nombre) LIKE ? OR LOWER(Apellido) LIKE ? OR LOWER(Telefono) LIKE ? OR LOWER(Direccion) LIKE ? OR LOWER(Patente) LIKE ?
+        """
+        cursor.execute(query, ('%' + busqueda + '%', '%' + busqueda + '%',  '%' + busqueda + '%',  '%' + busqueda + '%',  '%' + busqueda + '%'))
+
+        # Insertar los resultados filtrados en el Treeview
+        for cliente in cursor.fetchall():
+            tree.insert("", "end", values=cliente)
+
+    # Vincular la acción de búsqueda al texto que se ingresa
+    barra_busqueda.bind("<KeyRelease>", lambda event: actualizar_busqueda())  # Cada vez que se suelte una tecla
 
     # Tabla para mostrar clientes
     tree = ttk.Treeview(menuframe, columns=("ID", "Nombre", "Apellido", "Teléfono", "Dirección", "Patente"), show="headings", height=10)
-    tree.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+    tree.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
     
     # Configuración de las cabeceras
     tree.heading("ID", text="ID")
